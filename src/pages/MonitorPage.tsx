@@ -263,6 +263,20 @@ export function MonitorPage() {
           <ConfigRow label={t('hotkey_activation')}>
             <span className="font-bold text-[13px] text-emerald-400">Shift + F12</span>
           </ConfigRow>
+
+          {/* Tela do Overlay */}
+          <ConfigRow label={t('target_monitor_title')}>
+            <span className="font-medium text-[13px] text-blue-400">
+              {(settings.target_monitor ?? 0) === -1 ? t('monitor_auto_follow') : `Monitor ${(settings.target_monitor ?? 0) + 1}`}
+            </span>
+          </ConfigRow>
+
+          {/* Ativação Automática em Jogos */}
+          <ConfigRow label={t('auto_show_game_title')}>
+            <span className={`font-semibold text-[13px] ${settings.auto_show_in_game ? 'text-green-400' : 'text-gray-500'}`}>
+              {settings.auto_show_in_game ? t('status_enabled') : t('status_disabled')}
+            </span>
+          </ConfigRow>
         </div>
 
         {/* 显示项目 */}

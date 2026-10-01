@@ -1,11 +1,11 @@
 /**
  * 硬件概览左侧区域组件 / Visão Geral de Hardware
- * 展示 CPU、GPU、内存、磁盘、网络的概览信息
+ * 展示 CPU、GPU、内存、磁盘、显示器的概览信息（支持多显示器与多显卡）
  */
 
 import { useState } from 'react';
 import { Cpu, MonitorPlay, MemoryStick, HardDrive, Monitor, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
-import type { HardwareOverview } from '../../types/hardware';
+import type { HardwareOverview, GpuInfo, DisplayInfo } from '../../types/hardware';
 import { useI18n } from '../../i18n/useI18n';
 
 interface HardwareOverviewSectionProps {
@@ -24,20 +24,23 @@ function generateHardwareInfoText(data: HardwareOverview, t: (k: any) => string)
   lines.push(`${t('hw_usage')}: ${data.cpu.usage.toFixed(1)}%`);
   lines.push('');
   
-  // GPU
-  if (data.gpu) {
+  // GPUs
+  const gpus: GpuInfo[] = data.gpus && data.gpus.length > 0 ? data.gpus : (data.gpu ? [data.gpu] : []);
+  if (gpus.length > 0) {
     lines.push(`【${t('hw_gpu')}】`);
-    lines.push(`Modelo: ${data.gpu.name}`);
-    lines.push(`${t('hw_vram')}: ${(data.gpu.vram_total / 1024).toFixed(0)}GB`);
-    if (data.gpu.driver_version) {
-      lines.push(`${t('hw_driver')}: ${data.gpu.driver_version}`);
-    }
+    gpus.forEach((gpu, idx) => {
+      lines.push(`GPU ${idx + 1}: ${gpu.name} (${gpu.brand})`);
+      lines.push(`  ${t('hw_vram')}: ${(gpu.vram_total / 1024).toFixed(0)}GB`);
+      if (gpu.driver_version) {
+        lines.push(`  ${t('hw_driver')}: ${gpu.driver_version}`);
+      }
+    });
     lines.push('');
   }
   
   // 内存
   lines.push(`【${t('hw_memory')}】`);
-  lines.push(`Tipo: ${data.memory.memory_type || 'DDR4'}`);
+  lines.push(`Tipo: ${data.memory.memory_type || 'DDR5'} ${data.memory.frequency ? `@ ${data.memory.frequency}MHz` : ''}`);
   lines.push(`${t('hw_capacity')}: ${(data.memory.total / 1024).toFixed(0)}GB`);
   lines.push(`${t('hw_used')}: ${(data.memory.used / 1024).toFixed(1)}GB (${data.memory.usage.toFixed(1)}%)`);
   lines.push('');
@@ -50,10 +53,12 @@ function generateHardwareInfoText(data: HardwareOverview, t: (k: any) => string)
   lines.push('');
   
   // 显示器
-  if (data.display && data.display.width > 0 && data.display.refresh_rate > 0) {
+  const displays: DisplayInfo[] = data.displays && data.displays.length > 0 ? data.displays : (data.display ? [data.display] : []);
+  if (displays.length > 0) {
     lines.push(`【${t('hw_display')}】`);
-    lines.push(`${t('hw_resolution')}: ${data.display.width}×${data.display.height}`);
-    lines.push(`${t('hw_refresh_rate')}: ${data.display.refresh_rate}Hz`);
+    displays.forEach((disp, idx) => {
+      lines.push(`${disp.name || `Monitor ${idx + 1}`}: ${disp.width}×${disp.height} @ ${disp.refresh_rate}Hz ${disp.is_primary ? `(${t('monitor_primary')})` : ''}`);
+    });
   }
   
   return lines.join('\n');
@@ -87,6 +92,9 @@ export function HardwareOverviewSection({ data }: HardwareOverviewSectionProps) 
       </div>
     );
   }
+
+  const allGpus: GpuInfo[] = data.gpus && data.gpus.length > 0 ? data.gpus : (data.gpu ? [data.gpu] : []);
+  const allDisplays: DisplayInfo[] = data.displays && data.displays.length > 0 ? data.displays : (data.display ? [data.display] : []);
 
   return (
     <div className="card p-4">
@@ -133,7 +141,7 @@ export function HardwareOverviewSection({ data }: HardwareOverviewSectionProps) 
       {/* 内容区域 */}
       <div style={{ 
         position: 'relative',
-        maxHeight: isCollapsed ? '260px' : '1000px',
+        maxHeight: isCollapsed ? '260px' : '1200px',
         overflow: 'hidden',
         transition: 'max-height 0.3s ease-in-out'
       }}>
@@ -160,29 +168,52 @@ export function HardwareOverviewSection({ data }: HardwareOverviewSectionProps) 
           </div>
         </div>
 
-        {/* GPU 信息 */}
-        {data.gpu && (
+        {/* GPU 信息 (支持多 GPU) */}
+        {allGpus.length > 0 && (
           <div className="mb-3.5 pb-3.5 border-b border-[var(--color-border)]">
-            <div className="flex items-center gap-1.5 mb-2">
-              <MonitorPlay className="w-3.5 h-3.5 text-green-400" />
-              <span className="text-xs text-gray-400">{t('hw_gpu')}</span>
-            </div>
-            <p className="text-xs font-medium text-[var(--color-text-primary)] mb-1.5">{data.gpu.name}</p>
-            <div className="flex flex-col gap-0.5 text-xs">
-              <div className="text-[var(--color-text-muted)]">
-                {t('hw_vram')}: <span className="text-[var(--color-text-secondary)]">{(data.gpu.vram_total / 1024).toFixed(0)}GB</span>
-                <span className="text-green-400 ml-1">({data.gpu.vram_used > 0 ? ((data.gpu.vram_used / data.gpu.vram_total) * 100).toFixed(0) : 0}% {t('hw_used')})</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <MonitorPlay className="w-3.5 h-3.5 text-green-400" />
+                <span className="text-xs text-gray-400">{t('hw_gpu')}</span>
               </div>
-              {data.gpu.pcie_info && (
-                <div className="text-[var(--color-text-muted)]">
-                  PCIe: <span className="text-[var(--color-text-secondary)]">{data.gpu.pcie_info}</span>
-                </div>
+              {allGpus.length > 1 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 font-medium">
+                  {allGpus.length} GPUs
+                </span>
               )}
-              {data.gpu.driver_version && (
-                <div className="text-[var(--color-text-muted)]">
-                  {t('hw_driver')}: <span className="text-[var(--color-text-secondary)]">{data.gpu.driver_version}</span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {allGpus.map((gpu, idx) => (
+                <div key={idx} className={idx > 0 ? "pt-2 border-t border-[var(--color-border)]/50" : ""}>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">{gpu.name}</p>
+                    <span className="text-[10px] px-1 py-0.2 rounded bg-[var(--color-bg-input)] text-[var(--color-text-muted)] shrink-0">
+                      {gpu.brand}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-xs">
+                    <div className="text-[var(--color-text-muted)]">
+                      {t('hw_vram')}: <span className="text-[var(--color-text-secondary)]">{(gpu.vram_total / 1024).toFixed(0)}GB</span>
+                      {gpu.vram_used > 0 && (
+                        <span className="text-green-400 ml-1">
+                          ({((gpu.vram_used / gpu.vram_total) * 100).toFixed(0)}% {t('hw_used')})
+                        </span>
+                      )}
+                    </div>
+                    {gpu.pcie_info && (
+                      <div className="text-[var(--color-text-muted)]">
+                        PCIe: <span className="text-[var(--color-text-secondary)]">{gpu.pcie_info}</span>
+                      </div>
+                    )}
+                    {gpu.driver_version && (
+                      <div className="text-[var(--color-text-muted)] truncate">
+                        {t('hw_driver')}: <span className="text-[var(--color-text-secondary)]">{gpu.driver_version}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         )}
@@ -193,9 +224,16 @@ export function HardwareOverviewSection({ data }: HardwareOverviewSectionProps) 
             <MemoryStick className="w-3.5 h-3.5 text-purple-400" />
             <span className="text-xs text-gray-400">{t('hw_memory')}</span>
           </div>
-          <p className="text-xs font-medium text-[var(--color-text-primary)] mb-1">
-            {data.memory.memory_type || 'DDR5/DDR4'} {(data.memory.total / 1024).toFixed(0)}GB
-          </p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-xs font-medium text-[var(--color-text-primary)]">
+              {(data.memory.total / 1024).toFixed(0)}GB {data.memory.memory_type || 'DDR5'}
+            </p>
+            {data.memory.frequency && (
+              <span className="text-[11px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-medium">
+                {data.memory.frequency}MHz
+              </span>
+            )}
+          </div>
           <div className="text-xs text-[var(--color-text-muted)]">
             {t('hw_used')}: <span className="text-purple-400 font-medium">{(data.memory.used / 1024).toFixed(1)}GB</span>
             <span className="mx-2">|</span>
@@ -226,23 +264,44 @@ export function HardwareOverviewSection({ data }: HardwareOverviewSectionProps) 
           </div>
         </div>
 
-        {/* 显示器信息 */}
+        {/* 显示器信息 (支持多显示器) */}
         <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Monitor className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs text-gray-400">{t('hw_display')}</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Monitor className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-xs text-gray-400">{t('hw_display')}</span>
+            </div>
+            {allDisplays.length > 1 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">
+                {allDisplays.length} Telas
+              </span>
+            )}
           </div>
-          <p className="text-xs font-medium text-[var(--color-text-primary)] mb-1">Display</p>
-          <div className="text-xs text-[var(--color-text-muted)]">
-            {t('hw_resolution')}: <span className="text-[var(--color-text-secondary)]">
-              {data.display && data.display.width > 0
-                ? `${data.display.width}×${data.display.height}`
-                : '--'}
-            </span>
-            <span className="mx-2">|</span>
-            {t('hw_refresh_rate')}: <span className="text-blue-400 font-medium">
-              {data.display && data.display.refresh_rate > 0 ? `${data.display.refresh_rate}Hz` : '--'}
-            </span>
+
+          <div className="flex flex-col gap-2.5">
+            {allDisplays.map((disp, idx) => (
+              <div key={idx} className={idx > 0 ? "pt-2 border-t border-[var(--color-border)]/50" : ""}>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                    {disp.name || `Monitor ${idx + 1}`}
+                  </p>
+                  {disp.is_primary && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 font-medium shrink-0">
+                      {t('monitor_primary')}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  {t('hw_resolution')}: <span className="text-[var(--color-text-secondary)]">
+                    {disp.width > 0 ? `${disp.width}×${disp.height}` : '--'}
+                  </span>
+                  <span className="mx-2">|</span>
+                  {t('hw_refresh_rate')}: <span className="text-blue-400 font-medium">
+                    {disp.refresh_rate > 0 ? `${disp.refresh_rate}Hz` : '--'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

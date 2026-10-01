@@ -10,26 +10,45 @@ pub struct HardwareOverview {
     /// CPU 信息
     pub cpu: CpuInfo,
     /// GPU 信息
+    /// 主 GPU 信息（通常为高性能独立显卡）
     pub gpu: Option<GpuInfo>,
+    /// 系统所有检测到的 GPU 列表（含集显与独显）
+    #[serde(default)]
+    pub gpus: Vec<GpuInfo>,
     /// 内存信息
     pub memory: MemoryInfo,
     /// 磁盘列表
     pub disks: Vec<DiskInfo>,
     /// 网络信息
     pub network: NetworkInfo,
-    /// 显示器信息（当前分辨率与刷新率）
+    /// 主显示器信息（当前分辨率与刷新率）
     pub display: DisplayInfo,
+    /// 系统所有检测到的显示器列表
+    #[serde(default)]
+    pub displays: Vec<DisplayInfo>,
 }
 
 /// 显示器信息
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayInfo {
+    /// 显示器编号 (0, 1, ...)
+    #[serde(default)]
+    pub id: u32,
+    /// 显示器名称（如 "Monitor 1 (Principal)", "LG UltraGear" 等）
+    #[serde(default)]
+    pub name: String,
+    /// Win32 设备标识（如 "\\.\DISPLAY1"）
+    #[serde(default)]
+    pub device_name: String,
     /// 当前分辨率宽度 (物理像素)
     pub width: u32,
     /// 当前分辨率高度 (物理像素)
     pub height: u32,
     /// 当前刷新率 (Hz)
     pub refresh_rate: u32,
+    /// 是否为主显示器
+    #[serde(default)]
+    pub is_primary: bool,
 }
 
 /// CPU 详细信息
@@ -213,6 +232,15 @@ pub struct MonitorSettings {
     /// 全局快捷键 (默认 Shift+F12)
     #[serde(default = "default_hotkey")]
     pub hotkey: String,
+    /// 目标显示器：-1 表示跟随游戏/活动窗口，0 表示显示器 1，1 表示显示器 2...
+    #[serde(default = "default_target_monitor")]
+    pub target_monitor: i32,
+    /// 检测到游戏全屏时自动显示悬浮窗
+    #[serde(default)]
+    pub auto_show_in_game: bool,
+    /// 退出全屏游戏时自动隐藏悬浮窗
+    #[serde(default)]
+    pub auto_hide_on_exit: bool,
 }
 
 fn default_language() -> String {
@@ -221,6 +249,10 @@ fn default_language() -> String {
 
 fn default_hotkey() -> String {
     "Shift+F12".to_string()
+}
+
+fn default_target_monitor() -> i32 {
+    0
 }
 
 /// 监控面板位置
@@ -322,6 +354,9 @@ impl Default for MonitorSettings {
             font_size: 13,
             language: default_language(),
             hotkey: default_hotkey(),
+            target_monitor: default_target_monitor(),
+            auto_show_in_game: false,
+            auto_hide_on_exit: false,
         }
     }
 }

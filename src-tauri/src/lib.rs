@@ -122,6 +122,40 @@ async fn update_monitor_settings(
     Ok(())
 }
 
+/// 获取所有可用显示器列表
+#[tauri::command]
+fn get_available_displays() -> Vec<hardware::types::DisplayInfo> {
+    hardware::display::get_all_displays()
+}
+
+/// 获取悬浮窗目标显示器（支持多显示器指定或跟随活动屏幕）
+fn get_target_monitor(app: &tauri::AppHandle, settings: &MonitorSettings) -> Result<tauri::Monitor, String> {
+    let monitors = app.available_monitors()
+        .map_err(|e| e.to_string())?;
+
+    if monitors.is_empty() {
+        return app.primary_monitor()
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "No monitor found".to_string());
+    }
+
+    if settings.target_monitor < 0 {
+        if let Ok(Some(primary)) = app.primary_monitor() {
+            return Ok(primary);
+        }
+        return Ok(monitors[0].clone());
+    }
+
+    let idx = settings.target_monitor as usize;
+    if idx < monitors.len() {
+        Ok(monitors[idx].clone())
+    } else if let Ok(Some(primary)) = app.primary_monitor() {
+        Ok(primary)
+    } else {
+        Ok(monitors[0].clone())
+    }
+}
+
 /// 显示游戏内监控悬浮窗口
 #[tauri::command]
 async fn show_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -136,26 +170,32 @@ async fn show_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     }
     
-    // 获取主显示器信息
-    let monitor = app.primary_monitor()
-        .map_err(|e| e.to_string())?
-        .ok_or("No primary monitor found")?;
+    // 获取指定的目标显示器（支持多显示器）
+    let monitor = get_target_monitor(&app, &settings)?;
     
-    let screen_size = monitor.size();
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
     let scale_factor = monitor.scale_factor();
+
+    let mon_w = mon_size.width as f64 / scale_factor;
+    let mon_h = mon_size.height as f64 / scale_factor;
+    let mon_x = mon_pos.x as f64 / scale_factor;
+    let mon_y = mon_pos.y as f64 / scale_factor;
     
     // 计算窗口尺寸（根据位置、显示项与字号调整，紧凑尺寸）
     let (width, height) = overlay_window_size(&settings.position, &settings);
     let (width, height) = (width as i32, height as i32);
     
-    // 计算窗口位置
-    let (x, y) = calculate_overlay_position(
+    // 计算窗口相对位置并加上目标显示器的物理坐标原点
+    let (rel_x, rel_y) = calculate_overlay_position(
         &settings.position,
-        screen_size.width as f64 / scale_factor,
-        screen_size.height as f64 / scale_factor,
+        mon_w,
+        mon_h,
         width as f64,
         height as f64,
     );
+    let final_x = mon_x + rel_x;
+    let final_y = mon_y + rel_y;
     
     // 创建悬浮窗口
     let window = WebviewWindowBuilder::new(
@@ -165,7 +205,7 @@ async fn show_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
     )
     .title("NanoStat Monitor")
     .inner_size(width as f64, height as f64)
-    .position(x, y)
+    .position(final_x, final_y)
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
@@ -300,12 +340,16 @@ fn update_overlay_position(window: &tauri::WebviewWindow, position: &MonitorPosi
         .map_err(|e| format!("Failed to lock settings: {}", e))?
         .clone();
     
-    let monitor = window.primary_monitor()
-        .map_err(|e| e.to_string())?
-        .ok_or("No primary monitor found")?;
+    let monitor = get_target_monitor(&window.app_handle(), &settings)?;
     
-    let screen_size = monitor.size();
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
     let scale_factor = monitor.scale_factor();
+
+    let mon_w = mon_size.width as f64 / scale_factor;
+    let mon_h = mon_size.height as f64 / scale_factor;
+    let mon_x = mon_pos.x as f64 / scale_factor;
+    let mon_y = mon_pos.y as f64 / scale_factor;
     
     // 根据位置、显示项与字号调整窗口尺寸
     let (width, height) = overlay_window_size(position, &settings);
@@ -314,18 +358,59 @@ fn update_overlay_position(window: &tauri::WebviewWindow, position: &MonitorPosi
     window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
         .map_err(|e| e.to_string())?;
     
-    let (x, y) = calculate_overlay_position(
+    let (rel_x, rel_y) = calculate_overlay_position(
         position,
-        screen_size.width as f64 / scale_factor,
-        screen_size.height as f64 / scale_factor,
+        mon_w,
+        mon_h,
         width,
         height,
     );
+    let final_x = mon_x + rel_x;
+    let final_y = mon_y + rel_y;
     
-    window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)))
+    window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(final_x, final_y)))
         .map_err(|e| e.to_string())?;
     
     Ok(())
+}
+
+/// 自动检测游戏全屏并自动开启/隐藏悬浮窗
+fn start_auto_game_watcher(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut was_game_active = false;
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+            let (auto_show, auto_hide) = {
+                let settings = match MONITOR_SETTINGS.lock() {
+                    Ok(s) => s.clone(),
+                    Err(_) => continue,
+                };
+                (settings.auto_show_in_game, settings.auto_hide_on_exit)
+            };
+
+            if !auto_show {
+                continue;
+            }
+
+            let is_game = hardware::game::is_game_active();
+            if is_game && !was_game_active {
+                // 游戏启动 / 进入全屏：自动打开悬浮窗
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = show_overlay_window(handle).await;
+                });
+            } else if !is_game && was_game_active && auto_hide {
+                // 游戏退出：自动隐藏悬浮窗
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = hide_overlay_window(handle).await;
+                });
+            }
+
+            was_game_active = is_game;
+        }
+    });
 }
 
 /// 启动全局快捷键监听 (Shift + F12)
@@ -371,6 +456,7 @@ pub fn run() {
             hide_overlay_window,
             toggle_overlay_window,
             update_overlay_position_cmd,
+            get_available_displays,
         ])
         .setup(|app| {
             // 启动页切换：前端就绪后关闭 splash、显示主窗口（带 8s 超时兜底）
@@ -398,6 +484,9 @@ pub fn run() {
 
             // 注册全局快捷键 Shift+F12 切换 Overlay（原生零开销 Win32 监听）
             start_global_hotkey_listener(app.handle().clone());
+
+            // 启动全屏游戏自动开启 Overlay 监听
+            start_auto_game_watcher(app.handle().clone());
 
             // 启动 LHM 温度采集桥接进程（懒加载；驱动可选，未安装时自动回退 WMI）
             hardware::lhm::ensure_bridge(app.handle());

@@ -6,9 +6,9 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Monitor, Settings2, Eye, Sun, Moon, Laptop, Globe, Keyboard } from 'lucide-react';
-import type { MonitorSettings, MonitorPosition, DisplayItems } from '../types/hardware';
-import { showOverlayWindow, hideOverlayWindow, updateOverlayPosition, updateMonitorSettings } from '../api/hardware';
+import { X, Monitor, Settings2, Eye, Sun, Moon, Laptop, Globe, Keyboard, Tv, Gamepad2 } from 'lucide-react';
+import type { MonitorSettings, MonitorPosition, DisplayItems, DisplayInfo } from '../types/hardware';
+import { showOverlayWindow, hideOverlayWindow, updateOverlayPosition, updateMonitorSettings, getAvailableDisplays } from '../api/hardware';
 import { useTheme, type ThemeMode } from '../hooks/useTheme';
 import { Checkbox } from './ui/Checkbox';
 import { useI18n } from '../i18n/useI18n';
@@ -38,9 +38,16 @@ const contentMotion = {
 export function SettingsDialog({ open, onOpenChange, settings, onSave }: SettingsDialogProps) {
   const { t, language, setLanguage } = useI18n();
   const [localSettings, setLocalSettings] = useState<MonitorSettings>(settings);
+  const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const { theme, setTheme } = useTheme();
   const settingsRef = useRef(localSettings);
   const debounceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      getAvailableDisplays().then(setDisplays).catch(console.error);
+    }
+  }, [open]);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -90,6 +97,24 @@ export function SettingsDialog({ open, onOpenChange, settings, onSave }: Setting
     } catch (err) {
       console.error('Failed to update overlay position:', err);
     }
+  };
+
+  const handleTargetMonitorChange = async (target: number) => {
+    const next = { ...settingsRef.current, target_monitor: target };
+    updateLocalSettings(next);
+    try {
+      await updateMonitorSettings({ ...next, language });
+    } catch (err) {
+      console.error('Failed to update target monitor:', err);
+    }
+  };
+
+  const handleAutoShowGameChange = (auto_show_in_game: boolean) => {
+    updateLocalSettings({ ...settingsRef.current, auto_show_in_game });
+  };
+
+  const handleAutoHideExitChange = (auto_hide_on_exit: boolean) => {
+    updateLocalSettings({ ...settingsRef.current, auto_hide_on_exit });
   };
 
   const handleDisplayItemChange = (key: keyof DisplayItems, value: boolean) => {
@@ -268,6 +293,120 @@ export function SettingsDialog({ open, onOpenChange, settings, onSave }: Setting
                         }`}
                       />
                     </button>
+                  </div>
+
+                  {/* 目标显示器 / Tela do Overlay */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Tv className="w-3.5 h-3.5 text-emerald-400" />
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">{t('target_monitor_title')}</p>
+                      </div>
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        {displays.length > 0 ? `${displays.length} ${displays.length === 1 ? 'tela' : 'telas'}` : ''}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {/* Opção Automático (Seguir Jogo) */}
+                      <button
+                        onClick={() => handleTargetMonitorChange(-1)}
+                        className={`flex items-center justify-between rounded-lg font-medium transition-all px-3 py-2.5 text-xs text-left cursor-pointer ${
+                          (localSettings.target_monitor ?? 0) === -1
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-semibold'
+                            : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:border-[var(--color-border-light)] hover:text-[var(--color-text-primary)]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{t('monitor_auto_follow')}</span>
+                        </div>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">
+                          Auto
+                        </span>
+                      </button>
+
+                      {/* Lista de telas detectadas */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {(displays.length > 0 ? displays : [{ id: 0, name: 'Monitor 1', is_primary: true, width: 1920, height: 1080, refresh_rate: 60 }]).map((disp, idx) => {
+                          const isSelected = (localSettings.target_monitor ?? 0) === idx;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleTargetMonitorChange(idx)}
+                              className={`flex flex-col gap-1 rounded-lg font-medium transition-all p-2.5 text-xs text-left cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-semibold'
+                                  : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:border-[var(--color-border-light)] hover:text-[var(--color-text-primary)]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="truncate">{disp.name || `Monitor ${idx + 1}`}</span>
+                                {disp.is_primary && (
+                                  <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-400 font-normal shrink-0">
+                                    {t('monitor_primary')}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-[var(--color-text-muted)]">
+                                {disp.width > 0 ? `${disp.width}×${disp.height} @ ${disp.refresh_rate}Hz` : 'Padrão'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Automação de Jogos */}
+                  <div className="flex flex-col gap-2.5 rounded-lg p-4 bg-[var(--color-bg-input)] border border-[var(--color-border)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                          <Gamepad2 className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[var(--color-text-primary)]">{t('auto_show_game_title')}</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">{t('auto_show_game_desc')}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAutoShowGameChange(!localSettings.auto_show_in_game)}
+                        className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
+                          localSettings.auto_show_in_game
+                            ? 'bg-emerald-500 shadow-[0_0_8px_var(--color-card-glow)]'
+                            : 'bg-gray-600 shadow-none'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                            localSettings.auto_show_in_game ? 'left-5' : 'left-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {localSettings.auto_show_in_game && (
+                      <div className="flex items-center justify-between pt-2.5 border-t border-[var(--color-border)]/50">
+                        <div>
+                          <p className="text-xs font-medium text-[var(--color-text-primary)]">{t('auto_hide_game_title')}</p>
+                          <p className="text-[11px] text-[var(--color-text-muted)]">{t('auto_hide_game_desc')}</p>
+                        </div>
+                        <button
+                          onClick={() => handleAutoHideExitChange(!localSettings.auto_hide_on_exit)}
+                          className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
+                            localSettings.auto_hide_on_exit
+                              ? 'bg-emerald-500'
+                              : 'bg-gray-600 shadow-none'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${
+                              localSettings.auto_hide_on_exit ? 'left-4.5' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 监控面板位置 */}

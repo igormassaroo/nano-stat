@@ -35,13 +35,23 @@ pub fn get_hardware_overview() -> HardwareOverview {
     let mut sys = SYSTEM.lock().unwrap();
     sys.refresh_all();
     
+    let displays = display::get_all_displays();
+    let primary_display = displays.iter().find(|d| d.is_primary).cloned()
+        .or_else(|| displays.first().cloned())
+        .unwrap_or_else(display::get_display_info);
+
+    let gpus = gpu::get_all_gpus();
+    let primary_gpu = gpus.first().cloned().or_else(gpu::get_gpu_info);
+
     HardwareOverview {
         cpu: cpu::get_cpu_info(&sys),
-        gpu: gpu::get_gpu_info(),
+        gpu: primary_gpu,
+        gpus,
         memory: memory::get_memory_info(&sys),
         disks: disk::get_disk_info(&sys),
         network: network::get_network_info(&sys),
-        display: display::get_display_info(),
+        display: primary_display,
+        displays,
     }
 }
 

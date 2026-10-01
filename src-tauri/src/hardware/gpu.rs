@@ -1,6 +1,6 @@
 //! GPU 信息采集模块
 //! 
-//! 支持 NVIDIA (NVML)、AMD 和 Intel 集显 (WMI)
+//! 支持 NVIDIA (NVML)、AMD 和 Intel 集显 (WMI)，支持多 GPU 识别
 
 use super::types::GpuInfo;
 use nvml_wrapper::Nvml;
@@ -16,7 +16,6 @@ static NVML: Lazy<Mutex<Option<Nvml>>> = Lazy::new(|| {
 /// WMI GPU 信息结构
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 struct Win32VideoController {
     name: Option<String>,
     adapter_ram: Option<u64>,
@@ -46,110 +45,117 @@ fn detect_gpu_brand(name: &str) -> GpuBrand {
     }
 }
 
-/// 通过 NVML 获取 NVIDIA GPU 信息
-fn get_nvidia_gpu_info() -> Option<GpuInfo> {
-    let nvml_guard = NVML.lock().ok()?;
-    let nvml = nvml_guard.as_ref()?;
-    
-    let device = nvml.device_by_index(0).ok()?;
-    
-    let name = device.name().unwrap_or_else(|_| "Unknown GPU".to_string());
-    
-    let memory_info = device.memory_info().ok()?;
-    let vram_total = memory_info.total / (1024 * 1024);
-    let vram_used = memory_info.used / (1024 * 1024);
-    
-    let utilization = device.utilization_rates().ok();
-    let usage = utilization.map(|u| u.gpu as f32).unwrap_or(0.0);
-    
-    let temperature = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu).ok().map(|t| t as f32);
-    let power_usage = device.power_usage().ok().map(|p| p as f32 / 1000.0);
-    let core_clock = device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).ok();
-    let memory_clock = device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).ok();
-    
-    let pcie_info = device.pci_info().ok().map(|_| {
-        format!("PCIe x{} @ Gen{}", 
-            device.current_pcie_link_width().unwrap_or(0),
-            device.current_pcie_link_gen().unwrap_or(0)
-        )
-    });
-    
-    let driver_version = nvml.sys_driver_version().ok();
-    
-    Some(GpuInfo {
-        name,
-        brand: "NVIDIA".to_string(),
-        vram_total,
-        vram_used,
-        usage,
-        temperature,
-        power_usage,
-        core_clock,
-        memory_clock,
-        pcie_info,
-        driver_version,
-    })
-}
+/// 获取所有检测到的 GPU 列表（优先 NVML 获取的 NVIDIA 独显，其次 WMI 获取的 Intel/AMD 集显与独显）
+pub fn get_all_gpus() -> Vec<GpuInfo> {
+    let mut gpus = Vec::new();
 
-/// 通过 WMI 获取 GPU 信息 (AMD/Intel/通用)
-fn get_wmi_gpu_info() -> Option<GpuInfo> {
-    let wmi_con = wmi::WMIConnection::new(wmi::COMLibrary::new().ok()?).ok()?;
-    
-    let results: Vec<Win32VideoController> = wmi_con.query().ok()?;
-    
-    // 优先选择独立显卡 (AMD > Intel)
-    let gpu = results.into_iter()
-        .filter(|g| g.name.is_some())
-        .max_by_key(|g| {
-            let name = g.name.as_ref().unwrap();
-            let brand = detect_gpu_brand(name);
-            match brand {
-                GpuBrand::Amd => 2,
-                GpuBrand::Intel => 1,
-                _ => 0,
+    // 1. 通过 NVML 获取所有 NVIDIA GPU
+    if let Ok(nvml_guard) = NVML.lock() {
+        if let Some(nvml) = nvml_guard.as_ref() {
+            let count = nvml.device_count().unwrap_or(0);
+            for i in 0..count {
+                if let Ok(device) = nvml.device_by_index(i) {
+                    let name = device.name().unwrap_or_else(|_| format!("NVIDIA GPU {}", i));
+                    let memory_info = device.memory_info().ok();
+                    let vram_total = memory_info.as_ref().map(|m| m.total / (1024 * 1024)).unwrap_or(0);
+                    let vram_used = memory_info.as_ref().map(|m| m.used / (1024 * 1024)).unwrap_or(0);
+                    let utilization = device.utilization_rates().ok();
+                    let usage = utilization.map(|u| u.gpu as f32).unwrap_or(0.0);
+                    let temperature = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu).ok().map(|t| t as f32);
+                    let power_usage = device.power_usage().ok().map(|p| p as f32 / 1000.0);
+                    let core_clock = device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).ok();
+                    let memory_clock = device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).ok();
+                    let pcie_info = device.pci_info().ok().map(|_| {
+                        format!("PCIe x{} @ Gen{}", 
+                            device.current_pcie_link_width().unwrap_or(0),
+                            device.current_pcie_link_gen().unwrap_or(0)
+                        )
+                    });
+                    let driver_version = nvml.sys_driver_version().ok();
+
+                    gpus.push(GpuInfo {
+                        name,
+                        brand: "NVIDIA".to_string(),
+                        vram_total,
+                        vram_used,
+                        usage,
+                        temperature,
+                        power_usage,
+                        core_clock,
+                        memory_clock,
+                        pcie_info,
+                        driver_version,
+                    });
+                }
             }
-        })?;
-    
-    let name = gpu.name.unwrap_or_else(|| "Unknown GPU".to_string());
-    let brand = detect_gpu_brand(&name);
-    let brand_str = match brand {
-        GpuBrand::Amd => "AMD",
-        GpuBrand::Intel => "Intel",
-        _ => "Unknown",
-    }.to_string();
-    
-    // WMI 返回的显存单位是字节，转换为 MB
-    let vram_total = gpu.adapter_ram.unwrap_or(0) / (1024 * 1024);
-    
-    Some(GpuInfo {
-        name,
-        brand: brand_str,
-        vram_total,
-        vram_used: 0, // WMI 无法获取已用显存
-        usage: 0.0,   // WMI 无法获取使用率
-        temperature: None, // WMI 无法获取温度
-        power_usage: None,
-        core_clock: None,
-        memory_clock: None,
-        pcie_info: None,
-        driver_version: gpu.driver_version,
-    })
+        }
+    }
+
+    // 2. 通过 WMI 获取 AMD / Intel 以及其他显示适配器
+    if let Ok(com_lib) = wmi::COMLibrary::new() {
+        if let Ok(wmi_con) = wmi::WMIConnection::new(com_lib) {
+            if let Ok(results) = wmi_con.query::<Win32VideoController>() {
+                for controller in results {
+                    if let Some(name) = controller.name {
+                        let brand = detect_gpu_brand(&name);
+                        let name_lower = name.to_lowercase();
+
+                        // 避免重复收录已在 NVML 中采集的 NVIDIA 显卡
+                        let already_exists = gpus.iter().any(|g| {
+                            let existing_lower = g.name.to_lowercase();
+                            existing_lower.contains(&name_lower) 
+                                || name_lower.contains(&existing_lower) 
+                                || (g.brand == "NVIDIA" && name_lower.contains("nvidia"))
+                        });
+
+                        if !already_exists {
+                            let brand_str = match brand {
+                                GpuBrand::Amd => "AMD",
+                                GpuBrand::Intel => "Intel",
+                                GpuBrand::Nvidia => "NVIDIA",
+                                _ => "Outro",
+                            }.to_string();
+
+                            let vram_total = controller.adapter_ram.unwrap_or(0) / (1024 * 1024);
+
+                            gpus.push(GpuInfo {
+                                name,
+                                brand: brand_str,
+                                vram_total,
+                                vram_used: 0,
+                                usage: 0.0,
+                                temperature: None,
+                                power_usage: None,
+                                core_clock: None,
+                                memory_clock: None,
+                                pcie_info: None,
+                                driver_version: controller.driver_version,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 优先级排序：独立显卡排在最前 (NVIDIA > AMD > Intel > Other)
+    gpus.sort_by_key(|g| match g.brand.as_str() {
+        "NVIDIA" => 0,
+        "AMD" => 1,
+        "Intel" => 2,
+        _ => 3,
+    });
+
+    gpus
 }
 
-/// 获取 GPU 详细信息 (自动检测品牌)
+/// 获取首要 GPU 详细信息（主独显，用于向后兼容单卡接口）
 pub fn get_gpu_info() -> Option<GpuInfo> {
-    // 优先尝试 NVML (NVIDIA)
-    if let Some(info) = get_nvidia_gpu_info() {
-        return Some(info);
-    }
-    
-    // 回退到 WMI (AMD/Intel)
-    get_wmi_gpu_info()
+    get_all_gpus().into_iter().next()
 }
 
 /// 获取当前 GPU 使用率
 pub fn get_gpu_usage() -> f32 {
-    // 只有 NVIDIA 可以通过 NVML 获取使用率
     let nvml_guard = match NVML.lock() {
         Ok(guard) => guard,
         Err(_) => return 0.0,
@@ -172,12 +178,12 @@ pub fn get_gpu_usage() -> f32 {
 
 /// 获取当前 GPU 温度
 pub fn get_gpu_temperature() -> Option<f32> {
-    // 优先 LHM（支持 NVIDIA/AMD/Intel 全品牌，含 NVML 不可用时）
+    // 优先 LHM（支持 NVIDIA/AMD/Intel 全品牌）
     if let Some(temp) = super::lhm::get_gpu_temp() {
         return Some(temp);
     }
     
-    // 回退到 NVML（只有 NVIDIA 可以通过 NVML 获取温度）
+    // 回退到 NVML
     let nvml_guard = NVML.lock().ok()?;
     let nvml = nvml_guard.as_ref()?;
     let device = nvml.device_by_index(0).ok()?;
@@ -187,10 +193,7 @@ pub fn get_gpu_temperature() -> Option<f32> {
         .map(|t| t as f32)
 }
 
-/// GPU 实时补充指标（一次 NVML 查询拿全，减少锁竞争）
-///
-/// 返回 (显存已用 MB, 显存总量 MB, 核心频率 MHz, 功耗 W)；
-/// NVML 不可用（AMD/Intel/无驱动）时全部为 None，前端显示 --。
+/// GPU 实时补充指标（显存已用 MB, 显存总量 MB, 核心频率 MHz, 功耗 W）
 pub fn get_gpu_extra() -> (Option<u64>, Option<u64>, Option<u32>, Option<f32>) {
     let nvml_guard = match NVML.lock() {
         Ok(guard) => guard,

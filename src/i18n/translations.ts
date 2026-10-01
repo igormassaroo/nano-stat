@@ -57,6 +57,16 @@ export interface Translations {
   hotkey_desc: string;
   save_settings: string;
   close: string;
+  target_monitor_title: string;
+  target_monitor_desc: string;
+  monitor_auto_follow: string;
+  monitor_primary: string;
+  auto_show_game_title: string;
+  auto_show_game_desc: string;
+  auto_hide_game_title: string;
+  auto_hide_game_desc: string;
+  hw_displays: string;
+  hw_multiple_gpus: string;
 
   // Overlay Labels
   overlay_cpu: string;
@@ -179,6 +189,16 @@ export const translations: Record<Language, Translations> = {
     hotkey_desc: 'Pressione Shift + F12 no teclado para ativar ou ocultar o painel durante qualquer jogo.',
     save_settings: 'Salvar Configurações',
     close: 'Fechar',
+    target_monitor_title: 'Tela do Overlay (Monitor)',
+    target_monitor_desc: 'Escolha em qual monitor o painel do jogo será exibido',
+    monitor_auto_follow: 'Automático (Tela do Jogo)',
+    monitor_primary: 'Principal',
+    auto_show_game_title: 'Exibição Automática em Jogos',
+    auto_show_game_desc: 'Abrir o overlay automaticamente ao detectar um jogo em tela cheia',
+    auto_hide_game_title: 'Ocultar ao Fechar Jogo',
+    auto_hide_game_desc: 'Fechar o overlay automaticamente quando o jogo for encerrado',
+    hw_displays: 'Monitores Conectados',
+    hw_multiple_gpus: 'Placas de Vídeo (GPUs)',
 
     overlay_cpu: 'CPU',
     overlay_cpu_temp: 'CPU',
@@ -296,6 +316,16 @@ export const translations: Record<Language, Translations> = {
     hotkey_desc: 'Press Shift + F12 at any time during gameplay to toggle overlay on/off.',
     save_settings: 'Save Settings',
     close: 'Close',
+    target_monitor_title: 'Overlay Display (Monitor)',
+    target_monitor_desc: 'Choose which display to show the in-game overlay on',
+    monitor_auto_follow: 'Auto (Follow Game Screen)',
+    monitor_primary: 'Primary',
+    auto_show_game_title: 'Auto-show in Fullscreen Games',
+    auto_show_game_desc: 'Automatically open the overlay when a fullscreen game starts',
+    auto_hide_game_title: 'Auto-hide on Game Exit',
+    auto_hide_game_desc: 'Automatically close the overlay when leaving the game',
+    hw_displays: 'Connected Displays',
+    hw_multiple_gpus: 'Graphics Cards (GPUs)',
 
     overlay_cpu: 'CPU',
     overlay_cpu_temp: 'CPU',
@@ -413,6 +443,16 @@ export const translations: Record<Language, Translations> = {
     hotkey_desc: '游戏中随时按 Shift + F12 快速显示或隐藏监控悬浮窗。',
     save_settings: '保存设置',
     close: '关闭',
+    target_monitor_title: '悬浮窗所在屏幕 (显示器)',
+    target_monitor_desc: '选择游戏监控悬浮窗在哪个显示器上显示',
+    monitor_auto_follow: '自动 (跟随游戏屏幕)',
+    monitor_primary: '主屏幕',
+    auto_show_game_title: '全屏游戏自动开启',
+    auto_show_game_desc: '检测到全屏游戏运行时自动显示悬浮窗',
+    auto_hide_game_title: '退出游戏自动隐藏',
+    auto_hide_game_desc: '退出全屏游戏时自动关闭悬浮窗',
+    hw_displays: '连接的显示器',
+    hw_multiple_gpus: '显卡列表 (GPUs)',
 
     overlay_cpu: 'CPU',
     overlay_cpu_temp: 'CPU温度',

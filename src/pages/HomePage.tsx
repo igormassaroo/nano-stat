@@ -3,6 +3,7 @@
  * 展示硬件概览信息，类似游戏++的布局
  */
 
+import { useState } from 'react';
 import { useHardwareData } from '../hooks/useHardwareData';
 import { HardwareOverviewSection } from '../components/hardware/HardwareOverviewSection';
 import { CpuCard, GpuCard, MemoryCard, DiskCard, NetworkCard } from '../components/hardware';
@@ -12,6 +13,7 @@ import { useI18n } from '../i18n/useI18n';
 export function HomePage() {
   const { t, language } = useI18n();
   const { overview, realtime, cpuHistory, gpuHistory, loading, error, refresh } = useHardwareData(1000);
+  const [selectedGpuIndex, setSelectedGpuIndex] = useState(0);
 
   // 概览中的静态信息 + 实时的使用率/温度（overview 只低频刷新，使用率须用实时数据）
   const liveCpu = overview
@@ -22,11 +24,14 @@ export function HomePage() {
       }
     : null;
 
-  const liveGpu = overview?.gpu
+  const allGpus = overview?.gpus && overview.gpus.length > 0 ? overview.gpus : (overview?.gpu ? [overview.gpu] : []);
+  const currentGpu = allGpus[selectedGpuIndex] || overview?.gpu || null;
+
+  const liveGpu = currentGpu
     ? {
-        ...overview.gpu,
-        usage: realtime?.gpu_usage ?? overview.gpu.usage,
-        temperature: realtime?.gpu_temp ?? overview.gpu.temperature,
+        ...currentGpu,
+        usage: selectedGpuIndex === 0 ? (realtime?.gpu_usage ?? currentGpu.usage) : currentGpu.usage,
+        temperature: selectedGpuIndex === 0 ? (realtime?.gpu_temp ?? currentGpu.temperature) : currentGpu.temperature,
       }
     : null;
 
@@ -87,7 +92,13 @@ export function HomePage() {
               {overview ? (
                 <>
                   <CpuCard cpu={liveCpu!} usageHistory={cpuHistory} />
-                  <GpuCard gpu={liveGpu} usageHistory={gpuHistory} />
+                  <GpuCard
+                    gpu={liveGpu}
+                    gpus={allGpus}
+                    selectedIndex={selectedGpuIndex}
+                    onSelectGpu={setSelectedGpuIndex}
+                    usageHistory={selectedGpuIndex === 0 ? gpuHistory : []}
+                  />
                 </>
               ) : (
                 <>

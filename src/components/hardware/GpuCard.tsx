@@ -1,6 +1,6 @@
 /**
  * GPU 信息卡片组件 / Card de GPU
- * 展示 GPU 详细信息和使用率图表
+ * 展示 GPU 详细信息和使用率图表（支持多 GPU 切换）
  */
 
 import { MonitorPlay } from 'lucide-react';
@@ -10,10 +10,13 @@ import { useI18n } from '../../i18n/useI18n';
 
 interface GpuCardProps {
   gpu: GpuInfo | null;
+  gpus?: GpuInfo[];
+  selectedIndex?: number;
+  onSelectGpu?: (index: number) => void;
   usageHistory: number[];
 }
 
-export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
+export function GpuCard({ gpu, gpus, selectedIndex = 0, onSelectGpu, usageHistory }: GpuCardProps) {
   const { t } = useI18n();
 
   const chartData = usageHistory.map((value, index) => ({
@@ -46,11 +49,30 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
     <div className="card" style={{ padding: '16px' }}>
       {/* 卡片标题 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-        <div className="w-9 h-9 rounded-lg bg-green-500/15 flex items-center justify-center">
+        <div className="w-9 h-9 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0">
           <MonitorPlay className="w-4 h-4 text-green-400" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('hw_gpu')}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('hw_gpu')}</h3>
+            {gpus && gpus.length > 1 && (
+              <div className="flex gap-1 bg-[var(--color-bg-input)] p-0.5 rounded-lg border border-[var(--color-border)]">
+                {gpus.map((g, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSelectGpu?.(idx)}
+                    className={`px-2 py-0.5 text-[11px] font-medium rounded transition-all cursor-pointer ${
+                      selectedIndex === idx
+                        ? 'bg-green-500/20 text-green-400 font-semibold border border-green-500/40 shadow-sm'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'
+                    }`}
+                  >
+                    {g.brand === 'NVIDIA' ? 'NVIDIA (RTX)' : g.brand === 'Intel' ? 'Intel (iGPU)' : g.brand}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }} className="truncate">{gpu.name}</p>
         </div>
       </div>
@@ -105,7 +127,8 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
               type="monotone"
               dataKey="usage"
               stroke="#10b981"
-              strokeWidth={1.5}
+              strokeWidth={2}
+              fillOpacity={1}
               fill="url(#gpuGradient)"
               isAnimationActive={false}
             />
@@ -113,30 +136,38 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* 详细信息 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_vram')}</span>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+      {/* 底部详细信息 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
+            {t('hw_temp')}
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {gpu.temperature !== null ? `${gpu.temperature.toFixed(0)}°C` : '--'}
+          </span>
+        </div>
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
+            {t('hw_vram')}
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {(gpu.vram_total / 1024).toFixed(0)} GB
           </span>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_temp')}</span>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
-            {gpu.temperature ? `${gpu.temperature.toFixed(0)}°C` : 'N/A'}
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
+            {t('hw_freq')}
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {gpu.core_clock ? `${gpu.core_clock} MHz` : '--'}
           </span>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>Clock</span>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
-            {gpu.core_clock ? `${gpu.core_clock} MHz` : 'N/A'}
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '2px' }}>
+            Consumo
           </span>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>TDP</span>
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
-            {gpu.power_usage ? `${gpu.power_usage.toFixed(0)} W` : 'N/A'}
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {gpu.power_usage ? `${gpu.power_usage.toFixed(0)} W` : '--'}
           </span>
         </div>
       </div>

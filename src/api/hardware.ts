@@ -82,3 +82,10 @@ export async function updateOverlayPosition(position: MonitorPosition): Promise<
 export async function toggleOverlayWindow(): Promise<boolean> {
   return await invoke<boolean>('toggle_overlay_window');
 }
+
+/**
+ * 获取所有可用显示器列表
+ */
+export async function getAvailableDisplays(): Promise<import('../types/hardware').DisplayInfo[]> {
+  return await invoke<import('../types/hardware').DisplayInfo[]>('get_available_displays');
+}

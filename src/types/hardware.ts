@@ -105,26 +105,38 @@ export interface NetworkInfo {
 export interface HardwareOverview {
   /** CPU 信息 */
   cpu: CpuInfo;
-  /** GPU 信息 */
+  /** GPU 信息 (主显卡) */
   gpu: GpuInfo | null;
+  /** 所有显卡列表 (多 GPU 支持) */
+  gpus?: GpuInfo[];
   /** 内存信息 */
   memory: MemoryInfo;
   /** 磁盘列表 */
   disks: DiskInfo[];
   /** 网络信息 */
   network: NetworkInfo;
-  /** 显示器信息（当前分辨率与刷新率） */
+  /** 主显示器信息（当前分辨率与刷新率） */
   display: DisplayInfo;
+  /** 所有活动显示器列表 */
+  displays?: DisplayInfo[];
 }
 
 /** 显示器信息 */
 export interface DisplayInfo {
+  /** 显示器编号 (0, 1, ...) */
+  id?: number;
+  /** 显示器友好名称 (如 "Monitor 1 (Principal)", "LG UltraGear") */
+  name?: string;
+  /** Win32 设备标识 (如 "\\.\DISPLAY1") */
+  device_name?: string;
   /** 当前分辨率宽度 (物理像素) */
   width: number;
   /** 当前分辨率高度 (物理像素) */
   height: number;
   /** 当前刷新率 (Hz) */
   refresh_rate: number;
+  /** 是否为主显示器 */
+  is_primary?: boolean;
 }
 
 /** 网络统计数据 */
@@ -242,4 +254,10 @@ export interface MonitorSettings {
   language?: string;
   /** 全局快捷键 */
   hotkey?: string;
+  /** 目标显示器 (-1 为跟随游戏/活动屏幕，0 为显示器 1，1 为显示器 2...) */
+  target_monitor?: number;
+  /** 检测到全屏游戏时自动开启悬浮窗 */
+  auto_show_in_game?: boolean;
+  /** 退出全屏游戏时自动隐藏悬浮窗 */
+  auto_hide_on_exit?: boolean;
 }
