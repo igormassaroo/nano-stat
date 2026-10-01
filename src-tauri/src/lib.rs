@@ -331,7 +331,9 @@ fn update_overlay_position(window: &tauri::WebviewWindow, position: &MonitorPosi
 /// 启动全局快捷键监听 (Shift + F12)
 fn start_global_hotkey_listener(app: tauri::AppHandle) {
     std::thread::spawn(move || {
-        use windows_sys::Win32::UI::WindowsAndMessaging::GetAsyncKeyState;
+        extern "system" {
+            fn GetAsyncKeyState(vKey: i32) -> i16;
+        }
         const VK_SHIFT: i32 = 0x10;
         const VK_F12: i32 = 0x7B;
         let mut was_pressed = false;
