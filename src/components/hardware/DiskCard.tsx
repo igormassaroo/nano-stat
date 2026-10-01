@@ -1,17 +1,18 @@
 /**
- * 磁盘信息卡片组件
- * 展示所有磁盘的使用情况
+ * 磁盘信息卡片组件 / Card de Discos
  */
 
 import { HardDrive } from 'lucide-react';
 import type { DiskInfo } from '../../types/hardware';
+import { useI18n } from '../../i18n/useI18n';
 
 interface DiskCardProps {
-  /** 磁盘信息列表 */
   disks: DiskInfo[];
 }
 
 export function DiskCard({ disks }: DiskCardProps) {
+  const { t } = useI18n();
+
   return (
     <div className="card" style={{ padding: '16px' }}>
       {/* 卡片标题 */}
@@ -20,8 +21,8 @@ export function DiskCard({ disks }: DiskCardProps) {
           <HardDrive className="w-4 h-4 text-orange-400" />
         </div>
         <div>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>存储设备</h3>
-          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{disks.length} 个磁盘</p>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('hw_storage')}</h3>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{disks.length} drive(s)</p>
         </div>
       </div>
 

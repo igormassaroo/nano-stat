@@ -75,3 +75,10 @@ export async function hideOverlayWindow(): Promise<void> {
 export async function updateOverlayPosition(position: MonitorPosition): Promise<void> {
   await invoke('update_overlay_position_cmd', { position });
 }
+
+/**
+ * 切换游戏内监控悬浮窗口显示/隐藏
+ */
+export async function toggleOverlayWindow(): Promise<boolean> {
+  return await invoke<boolean>('toggle_overlay_window');
+}

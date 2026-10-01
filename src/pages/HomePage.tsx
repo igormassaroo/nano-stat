@@ -7,8 +7,10 @@ import { useHardwareData } from '../hooks/useHardwareData';
 import { HardwareOverviewSection } from '../components/hardware/HardwareOverviewSection';
 import { CpuCard, GpuCard, MemoryCard, DiskCard, NetworkCard } from '../components/hardware';
 import { Clock, RefreshCw } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 export function HomePage() {
+  const { t, language } = useI18n();
   const { overview, realtime, cpuHistory, gpuHistory, loading, error, refresh } = useHardwareData(1000);
 
   // 概览中的静态信息 + 实时的使用率/温度（overview 只低频刷新，使用率须用实时数据）
@@ -29,7 +31,8 @@ export function HomePage() {
     : null;
 
   // 获取当前时间
-  const currentTime = new Date().toLocaleString('zh-CN', {
+  const locale = language === 'pt-BR' ? 'pt-BR' : language === 'en' ? 'en-US' : 'zh-CN';
+  const currentTime = new Date().toLocaleString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -45,7 +48,7 @@ export function HomePage() {
           {loading && (
             <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              加载中...
+              {t('loading')}
             </span>
           )}
           <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
@@ -57,7 +60,7 @@ export function HomePage() {
             className="flex items-center gap-2 rounded-lg transition-all hover:opacity-80 px-3.5 py-1.5 text-[13px] text-[var(--color-text-secondary)] bg-[var(--color-bg-input)] border border-[var(--color-border)]"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            刷新
+            {t('refresh')}
           </button>
         </div>
       </div>

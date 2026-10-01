@@ -1,0 +1,61 @@
+name: Build NanoStat Custom
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows Application
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri Package
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v1.2.0-custom
+          releaseName: 'NanoStat Custom v1.2.0 (PT-BR + Shift+F12)'
+          releaseBody: |
+            ## NanoStat Custom - Fork Brasileiro
+            - **Idioma Padrão:** Português (PT-BR) com seletor de idiomas (PT-BR, EN, ZH)
+            - **Atalho Global:** Pressione `Shift + F12` a qualquer momento para ligar/desligar o overlay na tela
+            - **Métrica de Frametime:** Frametime (ms) adicionado ao lado de FPS
+            - **Layout Otimizado:** Barra horizontal limpa no topo da tela com métricas essenciais
+          releaseDraft: false
+          prerelease: false
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: NanoStat-Windows-Binaries
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/*.exe

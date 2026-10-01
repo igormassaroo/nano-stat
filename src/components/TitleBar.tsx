@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Minus, Square, X, Settings } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { UpdateButton } from './UpdateButton';
+import { useI18n } from '../i18n/useI18n';
 
 interface TitleBarProps {
   /** 打开设置弹窗的回调 */
@@ -16,6 +17,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, title }: TitleBarProps) {
+  const { t } = useI18n();
   const [isMaximized, setIsMaximized] = useState(false);
 
   // 最小化窗口
@@ -80,14 +82,14 @@ export function TitleBar({ onOpenSettings, title }: TitleBarProps) {
 
       {/* 右侧按钮 */}
       <div className="flex items-center gap-0 h-full no-drag">
-        {/* 检查更新按钮（自包含组件：点击检查更新 / 便携版弹下载渠道；自动检查由 App 静默实例负责） */}
+        {/* 检查更新按钮 */}
         <UpdateButton variant="icon" autoCheck={false} />
 
         {/* 设置按钮 */}
         <button
           onClick={onOpenSettings}
           className="w-10 h-full flex items-center justify-center text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)]"
-          title="设置"
+          title={t('title_settings')}
         >
           <Settings className="w-4 h-4" />
         </button>
@@ -96,21 +98,21 @@ export function TitleBar({ onOpenSettings, title }: TitleBarProps) {
         <button
           onClick={handleMinimize}
           className="w-10 h-full flex items-center justify-center text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)]"
-          title="最小化"
+          title={t('title_minimize')}
         >
           <Minus className="w-4 h-4" />
         </button>
         <button
           onClick={handleMaximize}
           className="w-10 h-full flex items-center justify-center text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)]"
-          title={isMaximized ? '还原' : '最大化'}
+          title={isMaximized ? 'Restaurar' : t('title_maximize')}
         >
           <Square className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={handleClose}
           className="w-10 h-full flex items-center justify-center text-[var(--color-text-secondary)] transition-colors hover:bg-red-500 hover:text-white"
-          title="关闭"
+          title={t('title_close')}
         >
           <X className="w-4 h-4" />
         </button>

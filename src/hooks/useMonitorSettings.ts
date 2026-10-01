@@ -9,26 +9,29 @@ import type { MonitorSettings } from '../types/hardware';
 
 /** 默认监控设置 */
 const defaultSettings: MonitorSettings = {
-  enabled: false,
+  enabled: true,
   position: 'TopCenter',
   display_items: {
     cpu: true,
-    cpu_temp: false,
+    cpu_temp: true,
     gpu: true,
     gpu_temp: true,
     memory: true,
-    network: true,
-    fps: false,
+    network: false,
+    fps: true,
+    frame_time: true,
     fps_1pct: true,
     vram: true,
-    disk: true,
+    disk: false,
     cpu_freq: false,
     gpu_freq: false,
     gpu_power: false,
   },
   refresh_interval: 1000,
   opacity: 80,
-  font_size: 12,
+  font_size: 13,
+  language: 'pt-BR',
+  hotkey: 'Shift+F12',
 };
 
 interface UseMonitorSettingsResult {

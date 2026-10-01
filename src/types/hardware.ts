@@ -210,6 +210,8 @@ export interface DisplayItems {
   fps: boolean;
   /** 显示 1% Low FPS */
   fps_1pct: boolean;
+  /** 显示平均帧时间 (ms) */
+  frame_time: boolean;
   /** 显示显存占用 */
   vram: boolean;
   /** 显示磁盘读写速率 */
@@ -236,4 +238,8 @@ export interface MonitorSettings {
   opacity: number;
   /** 面板文字大小 (px, 10-20) */
   font_size: number;
+  /** 界面语言 (pt-BR / en / zh) */
+  language?: string;
+  /** 全局快捷键 */
+  hotkey?: string;
 }

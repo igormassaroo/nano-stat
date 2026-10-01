@@ -207,6 +207,20 @@ pub struct MonitorSettings {
     pub opacity: u8,
     /// 面板文字大小 (px, 10-20)
     pub font_size: u8,
+    /// 语言设置 (pt-BR / en / zh)
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// 全局快捷键 (默认 Shift+F12)
+    #[serde(default = "default_hotkey")]
+    pub hotkey: String,
+}
+
+fn default_language() -> String {
+    "pt-BR".to_string()
+}
+
+fn default_hotkey() -> String {
+    "Shift+F12".to_string()
 }
 
 /// 监控面板位置
@@ -256,6 +270,9 @@ pub struct DisplayItems {
     /// 显示 1% Low FPS（帧时间 99 百分位换算）
     #[serde(default)]
     pub fps_1pct: bool,
+    /// 显示平均帧时间 (ms)
+    #[serde(default)]
+    pub frame_time: bool,
     /// 显示显存占用（已用/总量）
     #[serde(default)]
     pub vram: bool,
@@ -277,16 +294,16 @@ impl Default for DisplayItems {
     fn default() -> Self {
         DisplayItems {
             cpu: true,
-            cpu_temp: false,
+            cpu_temp: true,
             gpu: true,
             gpu_temp: true,
             memory: true,
-            network: true,
-            fps: false,
-            // 游戏加加核心指标默认开启（频率/功耗默认关，避免悬浮窗过长）
+            network: false,
+            fps: true,
             fps_1pct: true,
+            frame_time: true,
             vram: true,
-            disk: true,
+            disk: false,
             cpu_freq: false,
             gpu_freq: false,
             gpu_power: false,
@@ -302,7 +319,9 @@ impl Default for MonitorSettings {
             display_items: DisplayItems::default(),
             refresh_interval: 1000,
             opacity: 80,
-            font_size: 12,
+            font_size: 13,
+            language: default_language(),
+            hotkey: default_hotkey(),
         }
     }
 }

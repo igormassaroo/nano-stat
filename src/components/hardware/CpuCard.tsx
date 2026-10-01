@@ -1,5 +1,5 @@
 /**
- * CPU 信息卡片组件
+ * CPU 信息卡片组件 / Card de CPU
  * 展示 CPU 详细信息和使用率图表
  */
 
@@ -8,33 +8,30 @@ import { Cpu, Info } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { isLhmDriverMissing } from '../../api/hardware';
 import type { CpuInfo } from '../../types/hardware';
+import { useI18n } from '../../i18n/useI18n';
 
 interface CpuCardProps {
-  /** CPU 信息数据 */
   cpu: CpuInfo;
-  /** 历史使用率数据 */
   usageHistory: number[];
 }
 
 export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
-  // PawnIO 驱动是否缺失（用于温度不可用时提示引导安装）
+  const { t } = useI18n();
   const [driverMissing, setDriverMissing] = useState(false);
 
   useEffect(() => {
     isLhmDriverMissing().then(setDriverMissing).catch(() => {});
   }, []);
 
-  // 将历史数据转换为图表格式
   const chartData = usageHistory.map((value, index) => ({
     index,
     usage: value,
   }));
 
-  // 根据使用率确定颜色
   const getUsageColor = (usage: number) => {
-    if (usage >= 90) return '#ef4444'; // 红色 - 高负载
-    if (usage >= 70) return '#f59e0b'; // 橙色 - 中等负载
-    return '#0ea5e9'; // 蓝色 - 正常
+    if (usage >= 90) return '#ef4444';
+    if (usage >= 70) return '#f59e0b';
+    return '#0ea5e9';
   };
 
   const usageColor = getUsageColor(cpu.usage);
@@ -47,7 +44,7 @@ export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
           <Cpu className="w-4 h-4 text-emerald-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">处理器</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{t('hw_processor')}</h3>
           <p className="text-xs text-[var(--color-text-muted)] truncate">{cpu.name}</p>
         </div>
       </div>
@@ -57,7 +54,7 @@ export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
         {/* 使用率 */}
         <div className="bg-[var(--color-bg-input)] rounded-lg p-3">
           <div className="flex items-baseline justify-between mb-2">
-            <span className="text-xs text-[var(--color-text-muted)]">占用</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{t('hw_load')}</span>
             <span className="text-xl font-bold" style={{ color: usageColor }}>
               {cpu.usage.toFixed(0)}%
             </span>
@@ -73,7 +70,7 @@ export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
         {/* 温度 */}
         <div className="bg-[var(--color-bg-input)] rounded-lg p-3">
           <div className="flex items-baseline justify-between mb-2">
-            <span className="text-xs text-[var(--color-text-muted)]">温度</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{t('hw_temp')}</span>
             <span className="text-xl font-bold text-emerald-400">
               {cpu.temperature ? `${cpu.temperature.toFixed(0)}°C` : 'N/A'}
             </span>
@@ -84,13 +81,14 @@ export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
               style={{ width: `${cpu.temperature ? (cpu.temperature / 100) * 100 : 0}%` }}
             />
           </div>
-          {/* 驱动缺失提示（温度不可用时引导） */}
           {!cpu.temperature && driverMissing && (
             <div className="flex items-start gap-1.5 mt-2 text-[11px] text-[var(--color-text-muted)]">
-              <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <Info className="w-3 h-3 flex-shrink-0 mt-0.5 text-amber-400" />
               <span>
-                安装 <a href="https://pawnio.eu" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">PawnIO 驱动</a>
-                （需管理员）后重启应用即可读取 CPU 温度
+                <a href="https://pawnio.eu" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                  Driver PawnIO
+                </a>{' '}
+                {t('hw_pawnio_hint')}
               </span>
             </div>
           )}
@@ -123,15 +121,15 @@ export function CpuCard({ cpu, usageHistory }: CpuCardProps) {
       {/* 详细信息 */}
       <div className="grid grid-cols-3 gap-2">
         <div className="text-center">
-          <span className="block text-xs text-[var(--color-text-muted)]">核心数</span>
+          <span className="block text-xs text-[var(--color-text-muted)]">Núcleos</span>
           <span className="text-sm font-medium text-[var(--color-text-primary)]">{cpu.cores}</span>
         </div>
         <div className="text-center">
-          <span className="block text-xs text-[var(--color-text-muted)]">线程数</span>
+          <span className="block text-xs text-[var(--color-text-muted)]">Threads</span>
           <span className="text-sm font-medium text-[var(--color-text-primary)]">{cpu.threads}</span>
         </div>
         <div className="text-center">
-          <span className="block text-xs text-[var(--color-text-muted)]">频率</span>
+          <span className="block text-xs text-[var(--color-text-muted)]">{t('hw_freq')}</span>
           <span className="text-emerald-400 text-sm font-medium">{cpu.frequency} MHz</span>
         </div>
       </div>

@@ -1,27 +1,26 @@
 /**
- * GPU 信息卡片组件
+ * GPU 信息卡片组件 / Card de GPU
  * 展示 GPU 详细信息和使用率图表
  */
 
 import { MonitorPlay } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import type { GpuInfo } from '../../types/hardware';
+import { useI18n } from '../../i18n/useI18n';
 
 interface GpuCardProps {
-  /** GPU 信息数据 */
   gpu: GpuInfo | null;
-  /** 历史使用率数据 */
   usageHistory: number[];
 }
 
 export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
-  // 将历史数据转换为图表格式
+  const { t } = useI18n();
+
   const chartData = usageHistory.map((value, index) => ({
     index,
     usage: value,
   }));
 
-  // 如果没有 GPU 信息
   if (!gpu) {
     return (
       <div className="card" style={{ padding: '16px' }}>
@@ -30,18 +29,17 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
             <MonitorPlay className="w-4 h-4 text-green-400" />
           </div>
           <div>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>显卡</h3>
-            <p className="text-xs text-gray-500">未检测到可用 GPU</p>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('hw_gpu')}</h3>
+            <p className="text-xs text-gray-500">Nenhuma GPU detectada</p>
           </div>
         </div>
         <div className="text-center py-8 text-gray-500 text-sm">
-          未检测到显卡，请检查驱动程序是否正常安装
+          Verifique se os drivers da placa de vídeo estão instalados.
         </div>
       </div>
     );
   }
 
-  // 计算显存使用率
   const vramUsagePercent = gpu.vram_total > 0 ? (gpu.vram_used / gpu.vram_total) * 100 : 0;
 
   return (
@@ -52,7 +50,7 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
           <MonitorPlay className="w-4 h-4 text-green-400" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>显卡</h3>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('hw_gpu')}</h3>
           <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }} className="truncate">{gpu.name}</p>
         </div>
       </div>
@@ -62,7 +60,7 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
         {/* 显卡占用 */}
         <div className="bg-[var(--color-bg-input)] rounded-lg" style={{ padding: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>显卡占用</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_gpu_load')}</span>
             <span className="text-xl font-bold text-green-400">
               {gpu.usage.toFixed(0)}%
             </span>
@@ -78,7 +76,7 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
         {/* 显存占用 */}
         <div className="bg-[var(--color-bg-input)] rounded-lg" style={{ padding: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>显存占用</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_vram_load')}</span>
             <span className="text-xl font-bold text-green-400">
               {vramUsagePercent.toFixed(0)}%
             </span>
@@ -116,31 +114,31 @@ export function GpuCard({ gpu, usageHistory }: GpuCardProps) {
       </div>
 
       {/* 详细信息 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }} className="text-xs">
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="text-gray-500">显存</span>
-          <span className="text-gray-300">
-            {(gpu.vram_used / 1024).toFixed(1)} / {(gpu.vram_total / 1024).toFixed(0)} GB ({vramUsagePercent.toFixed(0)}%)
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_vram')}</span>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            {(gpu.vram_total / 1024).toFixed(0)} GB
           </span>
         </div>
-        {gpu.temperature && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="text-gray-500">温度</span>
-            <span className="text-orange-400 font-medium">{gpu.temperature.toFixed(0)}°C</span>
-          </div>
-        )}
-        {gpu.power_usage && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="text-gray-500">功耗</span>
-            <span className="text-gray-300">{gpu.power_usage.toFixed(0)}W</span>
-          </div>
-        )}
-        {gpu.core_clock && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="text-gray-500">核心频率</span>
-            <span className="text-green-400 font-medium">{gpu.core_clock} MHz</span>
-          </div>
-        )}
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('hw_temp')}</span>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
+            {gpu.temperature ? `${gpu.temperature.toFixed(0)}°C` : 'N/A'}
+          </span>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>Clock</span>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
+            {gpu.core_clock ? `${gpu.core_clock} MHz` : 'N/A'}
+          </span>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)' }}>TDP</span>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
+            {gpu.power_usage ? `${gpu.power_usage.toFixed(0)} W` : 'N/A'}
+          </span>
+        </div>
       </div>
     </div>
   );

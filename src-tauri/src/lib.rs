@@ -13,6 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code, ShortcutState};
 
 /// 获取配置文件路径
 fn get_config_path() -> PathBuf {
@@ -190,6 +191,25 @@ async fn hide_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 切换游戏内监控悬浮窗口显示/隐藏
+#[tauri::command]
+async fn toggle_overlay_window(app: tauri::AppHandle) -> Result<bool, String> {
+    if let Some(window) = app.get_webview_window(OVERLAY_WINDOW_LABEL) {
+        if window.is_visible().unwrap_or(false) {
+            window.hide().map_err(|e| e.to_string())?;
+            return Ok(false);
+        } else {
+            window.show().map_err(|e| e.to_string())?;
+            let settings = MONITOR_SETTINGS.lock().map_err(|e| e.to_string())?.clone();
+            update_overlay_position(&window, &settings.position)?;
+            return Ok(true);
+        }
+    } else {
+        show_overlay_window(app).await?;
+        return Ok(true);
+    }
+}
+
 /// 更新悬浮窗口位置
 #[tauri::command]
 async fn update_overlay_position_cmd(app: tauri::AppHandle, position: MonitorPosition) -> Result<(), String> {
@@ -244,7 +264,7 @@ fn overlay_window_size(position: &MonitorPosition, settings: &MonitorSettings) -
     let d = &settings.display_items;
     let n = [
         d.cpu, d.cpu_temp, d.gpu, d.gpu_temp, d.memory, d.network, d.fps,
-        d.fps_1pct, d.vram, d.disk, d.cpu_freq, d.gpu_freq, d.gpu_power,
+        d.frame_time, d.fps_1pct, d.vram, d.disk, d.cpu_freq, d.gpu_freq, d.gpu_power,
     ]
     .iter()
     .filter(|v| **v)
@@ -314,6 +334,18 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        let app_handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = toggle_overlay_window(app_handle).await;
+                        });
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             get_hardware_overview,
             get_realtime_stats,
@@ -323,6 +355,7 @@ pub fn run() {
             update_monitor_settings,
             show_overlay_window,
             hide_overlay_window,
+            toggle_overlay_window,
             update_overlay_position_cmd,
         ])
         .setup(|app| {
@@ -349,6 +382,12 @@ pub fn run() {
                 }
             }
 
+            // 注册全局快捷键 Shift+F12 切换 Overlay
+            let shortcut = Shortcut::new(Some(Modifiers::SHIFT), Code::F12);
+            if let Err(e) = app.global_shortcut().register(shortcut) {
+                eprintln!("Failed to register Shift+F12 shortcut: {}", e);
+            }
+
             // 启动 LHM 温度采集桥接进程（懒加载；驱动可选，未安装时自动回退 WMI）
             hardware::lhm::ensure_bridge(app.handle());
             // 启动 ETW FPS 监听（无注入；需要管理员权限）
@@ -359,12 +398,14 @@ pub fn run() {
             use tauri::menu::{MenuBuilder, MenuItemBuilder};
             
             // 创建菜单项
-            let show_item = MenuItemBuilder::with_id("show", "显示主窗口").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "退出").build(app)?;
+            let show_item = MenuItemBuilder::with_id("show", "Exibir Janela Principal").build(app)?;
+            let toggle_overlay_item = MenuItemBuilder::with_id("toggle_overlay", "Alternar Overlay (Shift+F12)").build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Sair").build(app)?;
             
             // 创建菜单
             let menu = MenuBuilder::new(app)
                 .item(&show_item)
+                .item(&toggle_overlay_item)
                 .separator()
                 .item(&quit_item)
                 .build()?;
@@ -381,6 +422,12 @@ pub fn run() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
+                        }
+                        "toggle_overlay" => {
+                            let app_handle = app.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let _ = toggle_overlay_window(app_handle).await;
+                            });
                         }
                         "quit" => {
                             app.exit(0);

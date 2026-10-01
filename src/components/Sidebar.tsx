@@ -4,6 +4,7 @@
  */
 
 import { Cpu, Monitor, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 /** 导航项类型 */
 type NavItem = 'hardware' | 'monitor' | 'about';
@@ -19,14 +20,14 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-/** 导航项配置 */
-const navItems: { id: NavItem; label: string; icon: typeof Cpu }[] = [
-  { id: 'hardware', label: '硬件信息', icon: Cpu },
-  { id: 'monitor', label: '游戏内监控', icon: Monitor },
-  { id: 'about', label: '关于', icon: Info },
-];
-
 export function Sidebar({ activeItem, onNavigate, collapsed, onToggleCollapse }: SidebarProps) {
+  const { t } = useI18n();
+
+  const navItems: { id: NavItem; label: string; icon: typeof Cpu }[] = [
+    { id: 'hardware', label: t('nav_hardware'), icon: Cpu },
+    { id: 'monitor', label: t('nav_monitor'), icon: Monitor },
+    { id: 'about', label: t('nav_about'), icon: Info },
+  ];
   return (
     <aside 
       style={{ 

@@ -7,11 +7,13 @@ import { useState, useEffect } from 'react';
 import { Github, Heart, Mail, Coffee, X, Video, Tv } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppVersion } from '../hooks/useAppVersion';
+import { useI18n } from '../i18n/useI18n';
 import wechatQr from '../assets/r_wechat_qr.jpg';
 import alipayQr from '../assets/r_alipay_qr.jpg';
 import avatar from '../assets/avatar.png';
 
 export function AboutPage() {
+  const { t } = useI18n();
   const appVersion = useAppVersion();
   // 打赏码放大预览（null=未打开）
   const [previewQr, setPreviewQr] = useState<{ src: string; name: string } | null>(null);
@@ -27,8 +29,8 @@ export function AboutPage() {
 
   // 打赏平台列表
   const donateChannels = [
-    { name: '微信', src: wechatQr, color: '#22c55e' },
-    { name: '支付宝', src: alipayQr, color: '#3b82f6' },
+    { name: 'WeChat', src: wechatQr, color: '#22c55e' },
+    { name: 'Alipay', src: alipayQr, color: '#3b82f6' },
   ];
 
   return (
@@ -39,29 +41,28 @@ export function AboutPage() {
           <div className="flex justify-center mb-5">
             <img src="/icons/128x128.png" alt="NanoStat" className="w-20 h-20 rounded-2xl shadow-lg" />
           </div>
-          <h1 className="text-[28px] font-bold text-[var(--color-text-primary)] mb-2">NanoStat</h1>
+          <h1 className="text-[28px] font-bold text-[var(--color-text-primary)] mb-2">NanoStat Custom</h1>
 
           {/* 功能说明 */}
           <p className="text-[var(--color-text-secondary)] text-sm leading-relaxed max-w-[560px] mx-auto mb-2.5">
-            NanoStat 是一款轻量级 Windows 硬件性能监控工具。你可以在桌面查看 CPU、GPU、内存、
-            磁盘和网络状态，也可以在游戏中打开可自定义的悬浮面板，实时关注使用率、温度、网络速率和 FPS。
+            {t('about_desc')}
           </p>
           <p className="text-[var(--color-text-muted)] text-xs leading-relaxed max-w-[560px] mx-auto">
-            使用提示：部分温度、功耗和 FPS 数据依赖硬件、驱动及系统权限；如果数据显示 N/A，请先刷新或检查相关驱动。
+            Atalho padrão do overlay: <span className="text-emerald-400 font-semibold">Shift + F12</span>.
           </p>
 
           {/* 版本信息 */}
           <div className="grid grid-cols-3 gap-2 mt-6 text-left">
             <div className="rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] px-3 py-2.5">
-              <p className="text-[11px] text-[var(--color-text-muted)]">当前版本</p>
-              <p className="mt-1 text-[13px] font-semibold text-emerald-500">{appVersion || '读取中...'}</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">{t('about_version')}</p>
+              <p className="mt-1 text-[13px] font-semibold text-emerald-500">{appVersion || '1.2.0'}</p>
             </div>
             <div className="rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] px-3 py-2.5">
-              <p className="text-[11px] text-[var(--color-text-muted)]">最近更新</p>
-              <p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">2026-08-11</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Hotkeys</p>
+              <p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">Shift + F12</p>
             </div>
             <div className="rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] px-3 py-2.5">
-              <p className="text-[11px] text-[var(--color-text-muted)]">许可证</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Licença</p>
               <p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">MIT</p>
             </div>
           </div>

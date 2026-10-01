@@ -6,10 +6,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { OverlayPanel } from './components/OverlayPanel';
+import { I18nProvider } from './i18n/useI18n';
 import './styles/overlay.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <OverlayPanel />
+    <I18nProvider>
+      <OverlayPanel />
+    </I18nProvider>
   </React.StrictMode>,
 );
