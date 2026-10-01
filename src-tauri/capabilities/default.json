@@ -19,10 +19,6 @@
     "core:window:allow-hide",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
-    "core:window:allow-set-ignore-cursor-events",
-    "global-shortcut:default",
-    "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
-    "global-shortcut:allow-is-registered"
+    "core:window:allow-set-ignore-cursor-events"
   ]
 }

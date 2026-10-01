@@ -50,6 +50,25 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      - name: Package Portable Zip
+        shell: bash
+        run: |
+          mkdir -p portable
+          MAIN_EXE=$(find src-tauri/target/release -maxdepth 1 -name "*.exe" ! -name "*.dll" | head -1)
+          if [ -n "$MAIN_EXE" ]; then
+            cp "$MAIN_EXE" portable/NanoStat.exe
+          fi
+          BRIDGE=$(find src-tauri/target/release -name "lhm-bridge.exe" | head -1)
+          if [ -n "$BRIDGE" ]; then
+            REL="${BRIDGE#src-tauri/target/release/}"
+            mkdir -p "portable/$(dirname "$REL")"
+            cp "$BRIDGE" "portable/$REL"
+          fi
+          echo "portable" > portable/portable.txt
+          cd portable
+          7z a -tzip "../NanoStat_1.2.0_x64-portable.zip" *
+          cd ..
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -59,3 +78,4 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/*.exe
+            *.zip

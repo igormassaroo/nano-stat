@@ -13,7 +13,6 @@ use std::fs;
 use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, Modifiers, Code, ShortcutState};
 
 /// 获取配置文件路径
 fn get_config_path() -> PathBuf {
@@ -329,23 +328,36 @@ fn update_overlay_position(window: &tauri::WebviewWindow, position: &MonitorPosi
     Ok(())
 }
 
+/// 启动全局快捷键监听 (Shift + F12)
+fn start_global_hotkey_listener(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetAsyncKeyState;
+        const VK_SHIFT: i32 = 0x10;
+        const VK_F12: i32 = 0x7B;
+        let mut was_pressed = false;
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            let shift_down = unsafe { (GetAsyncKeyState(VK_SHIFT) as u16 & 0x8000) != 0 };
+            let f12_down = unsafe { (GetAsyncKeyState(VK_F12) as u16 & 0x8000) != 0 };
+            let is_pressed = shift_down && f12_down;
+
+            if is_pressed && !was_pressed {
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = toggle_overlay_window(handle).await;
+                });
+            }
+            was_pressed = is_pressed;
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        let app_handle = app.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let _ = toggle_overlay_window(app_handle).await;
-                        });
-                    }
-                })
-                .build(),
-        )
         .invoke_handler(tauri::generate_handler![
             get_hardware_overview,
             get_realtime_stats,
@@ -382,11 +394,8 @@ pub fn run() {
                 }
             }
 
-            // 注册全局快捷键 Shift+F12 切换 Overlay
-            let shortcut = Shortcut::new(Some(Modifiers::SHIFT), Code::F12);
-            if let Err(e) = app.global_shortcut().register(shortcut) {
-                eprintln!("Failed to register Shift+F12 shortcut: {}", e);
-            }
+            // 注册全局快捷键 Shift+F12 切换 Overlay（原生零开销 Win32 监听）
+            start_global_hotkey_listener(app.handle().clone());
 
             // 启动 LHM 温度采集桥接进程（懒加载；驱动可选，未安装时自动回退 WMI）
             hardware::lhm::ensure_bridge(app.handle());
